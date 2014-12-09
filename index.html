@@ -1,0 +1,116 @@
+<!doctype html>
+<html>
+  <head>
+    <script type="text/javascript" src="https://cdn.respoke.io/respoke.min.js"></script>
+    <script type="text/javascript" src="http://code.jquery.com/jquery-1.11.0.min.js"></script>
+    <link href='http://fonts.googleapis.com/css?family=Cabin|VT323' rel='stylesheet' type='text/css'>
+    <link href="style.css" rel="stylesheet" type="text/css">
+  </head>
+  <body>
+    <h3 id="status">Not Connected</h3>
+    <div id="login">
+        User Name:
+        <input id="endpoint" type="text" /><br>
+        Select your language:
+        <select id="langSource">
+          <option value="ar">Arabic</option>
+          <option value="en">English</option>
+          <option value="hi">Hindi</option>
+          <option value="ja">Japanese</option>
+        </select><br>
+        <input id="doLogin" type="button" value="Connect" />
+    </div>
+    <div id="left-sidebar">
+      <h2>uhura</h2>
+      <h3>Translated chat messaging</h3>
+      <p>uhura is:</p>
+      <ul>
+        <li>a chat translation web app</li>
+        <li>built with <a href="https://docs.respoke.io/">Respoke</a></li>
+        <li>translated using Google's <a href="https://cloud.google.com/translate/v2/getting_started">Translate API</a></li>
+        <li>created by p. coleman</li>
+        </ul>
+    </div>
+    <div id="messaging">
+        <ul id="messages"></ul>
+        Send To: 
+        <input id="remoteId" type="text" /><br />
+        <textarea id="textToSend" rows="2"></textarea><br />
+        <input id="sendMessage" type="button" value="Send Message" />
+    </div>
+    
+    <script>
+      var appid = "afb9e393-dd50-498e-bf60-0e4b780ec053";
+
+      var client = respoke.createClient({
+        appId: appid,
+        developmentMode: true
+      });
+      
+      var group;
+      var endpoint;
+      var clientLang = '';
+
+      client.listen('connect', function (evt) {
+        $("#status").html("Connected to Respoke!");
+      });
+      
+      
+      
+      client.listen('message', function(evt) {
+        var messageLang = evt.message.message.slice(0,2);
+        var messageText = evt.message.message.slice(2);
+        
+        //translate only when there are different languages
+        if (!(messageLang === clientLang)){
+            $.ajax({
+              type: "GET",
+              url: "https://www.googleapis.com/language/translate/v2",
+              data: { key: "AIzaSyDDU4TXpRa8oqDaPyD4Gzyii-gF8w8UHFk", source: messageLang, target: clientLang, q: messageText },
+              dataType: 'json',
+              success: function (data) {
+                         $("#messages").append("<li>" + data.data.translations[0].translatedText + "</li>");
+                        },
+              error: function (data) {
+                       alert('fail');
+                     }
+              });
+        }
+          $("#messages").append(
+              "<li>" + messageText + "</li>"
+            );
+      });
+      
+      $("#doLogin").click(function () {
+        endpoint = $("#endpoint").val();
+          client.connect({
+          endpointId: endpoint
+        });
+        clientLang = $("#langSource").val();
+        $("#messages").append(
+              "<li>Language: " + clientLang + "</li>"
+          );
+      });
+      
+      $("#sendMessage").click(function (){
+          var user = $("#endpoint").val();
+          
+          //send message to individual user
+          var remote = $("#remoteId").val();
+          var endpoint = client.getEndpoint({ id: remote});
+          
+          var messageText = clientLang + user + ": " + $("#textToSend").val();
+          
+          endpoint.sendMessage({ message : messageText });
+          //group.sendMessage({ message: messageText});
+          
+          $("#messages").append(
+              "<li>" + messageText.slice(2) + "</li>"
+          );
+          
+          $("#textToSend").val('');
+      })
+    </script>
+    
+  </body>
+</html>
